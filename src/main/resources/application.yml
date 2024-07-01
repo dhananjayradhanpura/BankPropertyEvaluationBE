@@ -1,0 +1,18 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: property-valuator-be
+  datasource:
+    url: jdbc:mysql://localhost:3306/property_valuation
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+propertyValuation:
+  secretKey: mysecret
+  tokenExpireTime: 3600000000
+  refreshTokenTime: 3300000000
