@@ -1,21 +1,12 @@
 package com.app.propertyValuatorBE.service.impl;
 
-import com.app.propertyValuatorBE.config.security.CustomUserDetails;
-import com.app.propertyValuatorBE.config.security.JwtUtils;
-import com.app.propertyValuatorBE.db.entities.RefreshJwtToken;
-import com.app.propertyValuatorBE.db.entities.Role;
-import com.app.propertyValuatorBE.db.entities.User;
-import com.app.propertyValuatorBE.db.repository.RoleRepository;
-import com.app.propertyValuatorBE.db.repository.UserRepository;
-import com.app.propertyValuatorBE.dto.JwtResponseDto;
-import com.app.propertyValuatorBE.dto.JwtTokenRefreshRequestDto;
-import com.app.propertyValuatorBE.dto.LoginRequestDto;
-import com.app.propertyValuatorBE.dto.UserRequestDto;
-import com.app.propertyValuatorBE.enums.UserRole;
-import com.app.propertyValuatorBE.service.RefreshJwtTokenService;
-import com.app.propertyValuatorBE.service.UserService;
-import jakarta.transaction.Transactional;
-import jakarta.validation.Valid;
+
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+
+import com.app.propertyValuatorBE.constants.UserRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,126 +15,142 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import jakarta.validation.Valid;
+import com.app.propertyValuatorBE.dto.JwtResponse;
+import com.app.propertyValuatorBE.dto.LoginRequest;
+import com.app.propertyValuatorBE.dto.TokenRefreshRequest;
+import com.app.propertyValuatorBE.dto.UserRequestDTO;
+import com.app.propertyValuatorBE.entity.RefreshToken;
+import com.app.propertyValuatorBE.entity.Role;
+import com.app.propertyValuatorBE.entity.User;
+import mu.mcb.property.evalution.exception.GenericException;
+import mu.mcb.property.evalution.exception.TokenRefreshException;
+import com.app.propertyValuatorBE.repository.RoleRepository;
+import com.app.propertyValuatorBE.repository.UserRepository;
+import com.app.propertyValuatorBE.config.JwtUtils;
+import com.app.propertyValuatorBE.config.RefreshTokenService;
+import com.app.propertyValuatorBE.config.UserDetailsImpl;
+import com.app.propertyValuatorBE.service.UserService;
 
+/**
+ * The Class UserServiceImpl.
+ */
 @Service
 public class UserServiceImpl implements UserService {
+	
+	/** The role repository. */
+	@Autowired
+	private RoleRepository roleRepository;
+	
+	/** The user repository. */
+	@Autowired
+	private UserRepository userRepository;
+	
+	/** The authentication manager. */
+	@Autowired
+	private AuthenticationManager authenticationManager;
+	
+	/** The jwt utils. */
+	@Autowired
+	private JwtUtils jwtUtils;
+	
+	/** The refresh token service. */
+	@Autowired
+	private RefreshTokenService refreshTokenService;
+	
+	/** The encoder. */
+	@Autowired
+	PasswordEncoder encoder;
 
-    /** The role repository. */
-    @Autowired
-    private RoleRepository roleRepository;
+	/**
+	 * Register user.
+	 *
+	 * @param userRequestDTO the user request DTO
+	 * @return the string
+	 */
+	@Override
+	@Transactional
+	public Long registerUser(@Valid UserRequestDTO userRequestDTO) {
+		if (userRepository.existsByUsername(userRequestDTO.getUsername())) {
+			throw new GenericException("Username is already taken!", HttpStatus.CONFLICT);
+		}
+		// Create new user's account
+		User user =  User.builder().username(userRequestDTO.getUsername()).password(encoder.encode(userRequestDTO.getPassword()))
+					.contactNumber(userRequestDTO.getContactNumber())
+					.buisnessUnit(userRequestDTO.getBuisnessUnit())
+					.initiatorName(userRequestDTO.getUsername()).build();
+		Set<Role> roles = new HashSet<>();
 
-    /** The user repository. */
-    @Autowired
-    private UserRepository userRepository;
+		if (Objects.isNull(userRequestDTO.getRole())) {
+			Role userRole = roleRepository.findByName(UserRole.USER)
+					.orElseThrow(() -> new GenericException("Role not exist!", HttpStatus.NOT_FOUND));
+			roles.add(userRole);
+		} else {
+			if (userRequestDTO.getRole().equals(UserRole.ADMIN.name())) {
+				Role adminRole = roleRepository.findByName(UserRole.ADMIN)
+						.orElseThrow(() -> new GenericException("Role not exist", HttpStatus.NOT_FOUND));
+				roles.add(adminRole);
+			} else if (userRequestDTO.getRole().equals(UserRole.USER.name())) {
+				Role adminRole = roleRepository.findByName(UserRole.USER)
+						.orElseThrow(() -> new GenericException("Role not exist", HttpStatus.NOT_FOUND));
+				roles.add(adminRole);
+			} else {
+				throw new GenericException("Role not exist!", HttpStatus.NOT_FOUND);
+			}
+		}
+		user.setRoles(roles);
+		userRepository.save(user);
+		return user.getId();
+	}
 
-    /** The authentication manager. */
-    @Autowired
-    private AuthenticationManager authenticationManager;
+	/**
+	 * Authenticate user.
+	 *
+	 * @param loginRequest the login request
+	 * @return the jwt response
+	 */
+	@Override
+	public JwtResponse authenticateUser(@Valid LoginRequest loginRequest) {
+		Authentication authentication = authenticationManager.authenticate(
+				new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
-    /** The jwt utils. */
-    @Autowired
-    private JwtUtils jwtUtils;
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		String jwt = jwtUtils.generateJwtToken(authentication);
 
-    /** The refresh token service. */
-    @Autowired
-    private RefreshJwtTokenService refreshTokenService;
+		UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-    /** The encoder. */
-    @Autowired
-    PasswordEncoder encoder;
+		RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
+		Optional<User> optionalUser = userRepository.findById(userDetails.getId());
+		return new JwtResponse(jwt, refreshToken.getToken(), userDetails.getId(), userDetails.getUsername(),
+				userDetails.getRoleId(), optionalUser.get().getBuisnessUnit());
+	}
 
-    /**
-     * Register user.
-     *
-     * @param userRequestDTO the user request DTO
-     * @return the string
-     */
-    @Override
-    @Transactional
-    public String signup(@Valid UserRequestDto userRequestDTO) {
-        if (userRepository.existsByUsername(userRequestDTO.getUsername())) {
-            throw new RuntimeException("Username is already taken!, Error Code: " + HttpStatus.CONFLICT);
-        }
-        // Create new user's account
-        User user =  User.builder().username(userRequestDTO.getUsername()).password(encoder.encode(userRequestDTO.getPassword()))
-                .contactNumber(userRequestDTO.getContactNumber())
-                .buisnessUnit(userRequestDTO.getBuisnessUnit())
-                .initiatorName(userRequestDTO.getUsername()).build();
-        Set<Role> roles = new HashSet<>();
+	/**
+	 * Signout.
+	 */
+	@Override
+	public void signout() {
+		UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication()
+				.getPrincipal();
+		Long userId = userDetails.getId();
+		refreshTokenService.deleteByUserId(userId);
 
-        if (Objects.isNull(userRequestDTO.getRole())) {
-            Role userRole = roleRepository.findByName(UserRole.USER)
-                    .orElseThrow(() -> new RuntimeException("Role not exist!, Error Code: " + HttpStatus.NOT_FOUND));
-            roles.add(userRole);
-        } else {
-            if (userRequestDTO.getRole().equals(UserRole.ADMIN.name())) {
-                Role adminRole = roleRepository.findByName(UserRole.ADMIN)
-                        .orElseThrow(() -> new RuntimeException("Role not exist, Error Code: " + HttpStatus.NOT_FOUND));
-                roles.add(adminRole);
-            } else if (userRequestDTO.getRole().equals(UserRole.USER.name())) {
-                Role adminRole = roleRepository.findByName(UserRole.USER)
-                        .orElseThrow(() -> new RuntimeException("Role not exist, Error Code: " + HttpStatus.NOT_FOUND));
-                roles.add(adminRole);
-            } else {
-                throw new RuntimeException("Role not exist!, Error Code: " + HttpStatus.NOT_FOUND);
-            }
-        }
-        user.setRoles(roles);
-        userRepository.save(user);
-        return user.getId();
-    }
+	}
 
-    /**
-     * Authenticate user.
-     *
-     * @param loginRequest the login request
-     * @return the jwt response
-     */
-    @Override
-    public JwtResponseDto authenticateUser(@Valid LoginRequestDto loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-
-        RefreshJwtToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
-        Optional<User> optionalUser = userRepository.findById(userDetails.getId());
-        return new JwtResponseDto(jwt, refreshToken.getJwtToken(), userDetails.getId(), userDetails.getUsername(),
-                userDetails.getRoleId(), optionalUser.get().getBuisnessUnit());
-    }
-
-    /**
-     * Signout.
-     */
-    @Override
-    public void signout() {
-        CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication()
-                .getPrincipal();
-        String userId = userDetails.getId();
-        refreshTokenService.deleteByUserId(userId);
-
-    }
-
-    @Override
-    public JwtResponseDto refreshToken(@Valid JwtTokenRefreshRequestDto request) {
-        return refreshTokenService.findByJwtToken(request.getRefreshToken())
-                .map(refreshTokenService::verifyExpiration)
-                .map(RefreshJwtToken::getUser)
-                .map(user -> {
-                    String token = jwtUtils.generateTokenFromUsername(user.getUsername());
-                    String roleId = user.getRoles().stream().findFirst().get().getId();
-                    return new JwtResponseDto(token, request.getRefreshToken(), user.getId(), user.getUsername(), roleId);
-                })
-                .orElseThrow(() -> new RuntimeException(request.getRefreshToken() +
-                        " JWT token is not in database!"));
-    }
+	@Override
+	public JwtResponse refreshToken(@Valid TokenRefreshRequest request) {
+		return refreshTokenService.findByToken(request.getRefreshToken())
+		        .map(refreshTokenService::verifyExpiration)
+		        .map(RefreshToken::getUser)
+		        .map(user -> {
+		          String token = jwtUtils.generateTokenFromUsername(user.getUsername());
+		          Long roleId = user.getRoles().stream().findFirst().get().getRoleId();
+		          return new JwtResponse(token, request.getRefreshToken(), user.getId(), user.getUsername(), roleId);
+		        })
+		        .orElseThrow(() -> new TokenRefreshException(request.getRefreshToken(),
+		            "Refresh token is not in database!"));
+	}
 
 }

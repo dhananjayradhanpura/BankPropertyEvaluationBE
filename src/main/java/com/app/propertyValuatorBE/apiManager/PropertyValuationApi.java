@@ -1,9 +1,7 @@
 package com.app.propertyValuatorBE.apiManager;
 
+import java.util.List;
 
-import com.app.propertyValuatorBE.db.entities.PropertyValuation;
-import com.app.propertyValuatorBE.dto.PropertyValuationDto;
-import com.app.propertyValuatorBE.service.PropertyValuationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +22,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
+import com.app.propertyValuatorBE.dto.PropertyValuationDto;
+import com.app.propertyValuatorBE.entity.PropertyValuation;
+import com.app.propertyValuatorBE.service.PropertyValuationService;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -38,31 +37,31 @@ public class PropertyValuationApi {
 
     @PostMapping("/evaluation-form")
     public ResponseEntity<PropertyValuation> createValuationApplication(@RequestParam("file") MultipartFile file, @RequestParam("appData") String appData) throws JsonProcessingException {
-        log.info("PropertyValuationController createValuationApplication method is called.");
-        log.debug("Payload String format : {}",appData);
+    	log.info("PropertyValuationController createValuationApplication method is called.");
+    	log.debug("Payload String format : {}",appData);
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         PropertyValuationDto pvAppDto = mapper.readValue(appData, PropertyValuationDto.class);
         return new ResponseEntity<>(propertyValuationService.createEvaluationApplication(pvAppDto,file), HttpStatus.OK);
     }
-
+    
     @PutMapping(path = "/evaluation-form-update")
     public ResponseEntity<String> updateEvaluationApplication(@Valid @RequestBody PropertyValuationDto pvAppDto){
-        log.info("PropertyValuationController updateEvaluationApplication method is called.");
-        propertyValuationService.updateEvaluationApplication(pvAppDto);
+    	log.info("PropertyValuationController updateEvaluationApplication method is called.");
+    	propertyValuationService.updateEvaluationApplication(pvAppDto);
         return new ResponseEntity<>("success", HttpStatus.OK);
     }
-
+    
     @GetMapping("/fetchapplications")
     public ResponseEntity<List<PropertyValuationDto>> fetchAllApplication(){
-        log.info("PropertyValuationController fetchAllApplication method is called.");
+    	log.info("PropertyValuationController fetchAllApplication method is called.");
         return new ResponseEntity<>(propertyValuationService.fetchApplication(), HttpStatus.OK);
     }
 
     @GetMapping("/fetchapplication/{id}")
-    public ResponseEntity<PropertyValuationDto> fetchAByApplicationId(@PathVariable String id){
-        log.info("PropertyValuationController updateEvaluationApplication method is called.");
-        log.debug("Application ID : {}",id);
+    public ResponseEntity<PropertyValuationDto> fetchAByApplicationId(@PathVariable Long id){
+    	log.info("PropertyValuationController updateEvaluationApplication method is called.");
+    	log.debug("Application ID : {}",id);
         return new ResponseEntity<>(propertyValuationService.fetchApplicationById(id), HttpStatus.OK);
     }
 

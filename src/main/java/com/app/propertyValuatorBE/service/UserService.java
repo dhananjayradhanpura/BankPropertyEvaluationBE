@@ -1,19 +1,23 @@
 package com.app.propertyValuatorBE.service;
 
-import com.app.propertyValuatorBE.dto.JwtResponseDto;
-import com.app.propertyValuatorBE.dto.JwtTokenRefreshRequestDto;
-import com.app.propertyValuatorBE.dto.LoginRequestDto;
-import com.app.propertyValuatorBE.dto.UserRequestDto;
-import jakarta.transaction.Transactional;
+
 import jakarta.validation.Valid;
+import com.app.propertyValuatorBE.dto.JwtResponse;
+import com.app.propertyValuatorBE.dto.LoginRequest;
+import com.app.propertyValuatorBE.dto.TokenRefreshRequest;
+import com.app.propertyValuatorBE.dto.UserRequestDTO;
 
+/**
+ * The Interface UserService.
+ */
 public interface UserService {
-    @Transactional
-    String signup(@Valid UserRequestDto userRequestDTO);
 
-    JwtResponseDto authenticateUser(LoginRequestDto loginRequest);
+	Long registerUser(@Valid UserRequestDTO userRequestDTO);
 
-    void signout();
+	JwtResponse authenticateUser(@Valid LoginRequest loginRequest);
 
-    JwtResponseDto refreshToken(@Valid JwtTokenRefreshRequestDto request);
+	void signout();
+
+	JwtResponse refreshToken(@Valid TokenRefreshRequest request);
+
 }

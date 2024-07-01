@@ -4,6 +4,9 @@ import com.app.propertyValuatorBE.dto.BorrowerDto;
 
 import java.util.List;
 
+
 public interface BorrowerService {
-    List<BorrowerDto> getBorrowerData(String userId);
+
+	List<BorrowerDto> getBorrowerData(Long userId);
+
 }

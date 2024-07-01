@@ -4,6 +4,9 @@ import com.app.propertyValuatorBE.dto.CommentsDto;
 
 import java.util.List;
 
+
 public interface CommentService {
-    List<CommentsDto> findCommentsByUserId(String userId);
+
+	List<CommentsDto> getcommentsByUserId(Long iserId);
+
 }

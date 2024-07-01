@@ -15,6 +15,6 @@ public class BorrowerDto {
     private String email;
     private String address;
     private Boolean isMainBorrower;
-
-
+	
+    
 }

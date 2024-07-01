@@ -1,6 +1,6 @@
 package com.app.propertyValuatorBE.dto;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -15,8 +15,8 @@ import lombok.NoArgsConstructor;
 public class CommentsDto {
     private Long id;
     private String comments;
-    private Date createdDate;
-    private String username;
+    private LocalDateTime createdDate;
+    private String userName;
     private String createdDates;
-
+	
 }

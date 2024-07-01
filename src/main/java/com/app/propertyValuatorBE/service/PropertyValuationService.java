@@ -1,19 +1,19 @@
 package com.app.propertyValuatorBE.service;
 
-import com.app.propertyValuatorBE.db.entities.PropertyValuation;
-import com.app.propertyValuatorBE.dto.PropertyValuationDto;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.util.List;
 
+import org.springframework.web.multipart.MultipartFile;
+
+import com.app.propertyValuatorBE.dto.PropertyValuationDto;
+import com.app.propertyValuatorBE.entity.PropertyValuation;
+
 public interface PropertyValuationService {
-    PropertyValuation createEvaluationApplication(PropertyValuationDto pvDto, MultipartFile file);
+    
+	PropertyValuation createEvaluationApplication(PropertyValuationDto pvAppDto, MultipartFile file);
+   
+	String updateEvaluationApplication(PropertyValuationDto pvAppDto);
+    
+	List<PropertyValuationDto> fetchApplication();
 
-    @Transactional
-    List<PropertyValuationDto> fetchApplication();
-
-    PropertyValuationDto fetchApplicationById(String id);
-
-    String updateEvaluationApplication(PropertyValuationDto pvDto);
+    PropertyValuationDto fetchApplicationById(Long id);
 }

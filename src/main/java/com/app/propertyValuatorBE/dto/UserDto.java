@@ -10,11 +10,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserDto {
-    private String userId;
+    private Long userid;
     private String username;
     private Set<RoleDto> roles;
     private String buisnessUnit;
     private String contactNumber;
-
-
+	
+    
 }
